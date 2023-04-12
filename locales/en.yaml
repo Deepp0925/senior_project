@@ -1,0 +1,17 @@
+locale: en-US
+# theese will have two types of lcoales
+# static and dynamic
+# static are the kind that have no inserted values in them
+# For example:
+# hello: Hello World!
+#
+# dynamic on the hand change sentences based on the provided input
+# hello: Hello {{name}}
+# this will convert to the provided string
+# hello John, hello Grace, etc...
+
+# These are dynamic values
+# Informational
+# Warnings
+max_depth_reached_title: Maximum Folder Depth Reached
+max_depth_reached_desc: Contents of the folder {{name}} will not be copied as the program does support depth beyond {{usize}}.

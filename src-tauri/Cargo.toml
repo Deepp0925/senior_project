@@ -1,0 +1,36 @@
+[package]
+name = "senior-project"
+version = "0.0.0"
+description = "A Tauri App"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.2", features = [] }
+
+[dependencies]
+tauri = { version = "1.2", features = ["shell-open"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.27.0", features = ["fs", "io-std", "io-util", "macros", "rt" ] }
+futures = "0.3.28"
+async-recursion = "1.0.4"
+log = "0.4.17"
+log4rs = "1.2.0"
+rand = "0.8.5"
+normpath = "1.1.1"
+async-fs = "1.6.0"
+jwalk = "0.8.1"
+async-trait = "0.1.68"
+hashbrown = "0.13.2"
+arrayvec = "0.7.2"
+walkdir = "2.3.3"
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
