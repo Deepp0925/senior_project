@@ -2,6 +2,7 @@ pub mod error;
 #[macro_use]
 pub mod macros;
 pub mod array;
+pub mod behold;
 pub mod event_emitter;
 pub mod log;
 pub mod strings;

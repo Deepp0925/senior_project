@@ -4,7 +4,7 @@ use crate::{
 };
 use async_fs::{metadata, read_dir};
 use futures::{future::FutureExt, StreamExt};
-use normpath::BasePathBuf;
+use normpath::{BasePathBuf, PathExt as NormPathExt};
 use std::{
     panic::AssertUnwindSafe,
     path::{Path, PathBuf},
@@ -100,12 +100,34 @@ pub async fn random_copy<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
 /// let path = Path::new("./file.txt");
 /// assert_eq!(path.normalize(), Path::new("/home/user/file.txt"));
 /// ```
-pub async fn absolute<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
+pub fn absolute<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
+    if path.as_ref().is_absolute() {
+        return Some(path.as_ref().to_owned());
+    }
     let p = BasePathBuf::new(path.as_ref()).ok()?.canonicalize().ok()?;
     let normalized_path = p.normalize().ok()?.into_path_buf();
     let norm_path_str = normalized_path.to_str()?.to_owned();
     let path = Path::new(&(norm_path_str.replace("\\\\", "/"))).to_owned();
     return Some(path);
+}
+
+pub fn normalize<P: AsRef<Path>>(path: P) -> PropErrnoResult<PathBuf> {
+    let normalized_path = NormPathExt::normalize(path.as_ref());
+    let normalized_path = PropErrno::from_io_result(normalized_path, Some(&path))?
+        .as_os_str()
+        .to_str()
+        .ok_or(PropErrno::PathNormalizeVal(
+            path.as_ref().parent_and_current(),
+        ))?
+        .to_owned();
+    let path = Path::new(&(normalized_path.replace("\\\\", "/"))).to_owned();
+    return Ok(path);
+}
+
+pub fn copy_path_dst<P: AsRef<Path>>(path: P, dst: P, copying_name: &str) -> Option<PathBuf> {
+    let mut new_path = dst.as_ref().to_owned();
+
+    todo!()
 }
 
 /// this will return the parent path and the current path
@@ -262,6 +284,12 @@ pub trait PathExt: AsRef<Path> {
     /// path.make_random_copy(); // will add a random string after the file name - like "file_copy_5d8f8f8f.txt"
     /// ```
     async fn random_copy(&mut self) -> PropErrnoResult<PathBuf>;
+
+    /// Normalizes the path
+    fn normalize(&self) -> PropErrnoResult<PathBuf> {
+        normalize(&self)
+    }
+
     /// returns the absolute path with the path normalized
     /// from \\ to /
     /// # Examples
@@ -270,7 +298,10 @@ pub trait PathExt: AsRef<Path> {
     /// let path = Path::new("./file.txt");
     /// assert_eq!(path.normalize(), Path::new("/home/user/file.txt"));
     /// ```
-    async fn absolute(&self) -> PropErrnoResult<PathBuf>;
+    fn absolute(&self) -> PropErrnoResult<PathBuf> {
+        absolute(&self).ok_or_else(|| PropErrno::PathNormalizeVal(self.parent_and_current()))
+    }
+
     /// this will return the parent path and the current path
     /// this will be used primarily for the Errno
     /// # Examples
@@ -279,7 +310,9 @@ pub trait PathExt: AsRef<Path> {
     /// let path = Path::new("/home/user/file.txt");
     /// assert_eq!(path.parent_and_current().to_str(), "user/file.txt");
     /// ```
-    fn parent_and_current(&self) -> String;
+    fn parent_and_current(&self) -> String {
+        parent_and_current(&self).unwrap_or_else(|| UNKNOWN_LOCATION.to_string())
+    }
 
     /// Return default path if the path is not available
 
@@ -369,46 +402,10 @@ impl PathExt for PathBuf {
             .await
             .ok_or_else(|| PropErrno::PathCopyVal(self.parent_and_current()))
     }
-
-    /// returns the absolute path with the path normalized
-    /// from \\ to /
-    /// # Examples
-    /// ```
-    /// use std::path::Path;
-    /// let path = Path::new("./file.txt");
-    /// assert_eq!(path.normalize(), Path::new("/home/user/file.txt"));
-    /// ```
-    async fn absolute(&self) -> PropErrnoResult<PathBuf> {
-        absolute(&self)
-            .await
-            .ok_or_else(|| PropErrno::PathNormalizeVal(self.parent_and_current()))
-    }
-
-    /// this will return the parent path and the current path
-    /// this will be used primarily for the Errno
-    /// # Examples
-    /// ```
-    /// use std::path::Path;
-    /// let path = Path::new("/home/user/file.txt");
-    /// assert_eq!(path.parent_and_current().to_str(), "user/file.txt");
-    /// ```
-    fn parent_and_current(&self) -> String {
-        parent_and_current(&self).unwrap_or_else(|| UNKNOWN_LOCATION.to_string())
-    }
 }
 
 #[async_trait::async_trait()]
 impl PathExt for Path {
-    /// makes a copy of the path
-    /// by adding "_copy" after the file name
-    /// if the path already exists otherwise returns the same path
-    /// this will also create incremental copies if necessary
-    /// # Examples
-    /// ```
-    /// use std::path::Path;
-    /// let path = Path::new("/home/user/file.txt");
-    /// assert_eq!(path.make_copy(), Path::new("/home/user/file_copy.txt"));
-    /// ```
     async fn copy_if_exist(&mut self) -> PropErrnoResult<PathBuf> {
         if exists(&self).await {
             self.copy().await
@@ -444,31 +441,5 @@ impl PathExt for Path {
         random_copy(&self)
             .await
             .ok_or_else(|| PropErrno::PathCopyVal(self.parent_and_current()))
-    }
-
-    /// returns the absolute path with the path normalized
-    /// from \\ to /
-    /// # Examples
-    /// ```
-    /// use std::path::Path;
-    /// let path = Path::new("./file.txt");
-    /// assert_eq!(path.normalize(), Path::new("/home/user/file.txt"));
-    /// ```
-    async fn absolute(&self) -> PropErrnoResult<PathBuf> {
-        absolute(&self)
-            .await
-            .ok_or_else(|| PropErrno::PathNormalizeVal(self.parent_and_current()))
-    }
-
-    /// this will return the parent path and the current path
-    /// this will be used primarily for the Errno
-    /// # Examples
-    /// ```
-    /// use std::path::Path;
-    /// let path = Path::new("/home/user/file.txt");
-    /// assert_eq!(path.parent_and_current().to_str(), "user/file.txt");
-    /// ```
-    fn parent_and_current(&self) -> String {
-        parent_and_current(&self).unwrap_or_else(|| UNKNOWN_LOCATION.to_string())
     }
 }

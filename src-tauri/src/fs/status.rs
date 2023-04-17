@@ -69,11 +69,13 @@ impl DirStatus {
             if let Err(err) = &info {
                 if err.is_cancelled() {
                     *self = DirStatus::Aborted;
+                    return;
                 }
 
                 *self = DirStatus::Error;
+                return;
             }
-
+            // SAFETY: we checked for errors above
             *self = DirStatus::Done(info.unwrap());
         }
     }

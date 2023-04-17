@@ -1,8 +1,7 @@
 use std::{
-    io::{Error as IOError, ErrorKind},
     path::Path,
     pin::Pin,
-    task::{Context, Poll, Waker},
+    task::{Context, Poll},
 };
 
 use crate::{
@@ -11,10 +10,10 @@ use crate::{
     path::PathExt,
 };
 use futures::Stream;
-use walkdir::{DirEntry as WalkDirEntry, Error, IntoIter, WalkDir};
+use walkdir::{DirEntry as WalkDirEntry, Error, FilterEntry, IntoIter, WalkDir};
 
 pub struct DirTraversal {
-    root: IntoIter,
+    root: FilterEntry<IntoIter, fn(&WalkDirEntry) -> bool>,
     status: DirStatus,
     count: u128,
 }
@@ -25,7 +24,14 @@ impl DirTraversal {
             root: WalkDir::new(&path)
                 .max_depth(usize::MAX)
                 // .skip_hidden(skip_hidden)
-                .into_iter(),
+                .into_iter()
+                .filter_entry(|entry| {
+                    entry
+                        .file_name()
+                        .to_str()
+                        .map(|s| !s.starts_with("."))
+                        .unwrap_or(false)
+                }),
             status: DirStatus::Calculating(get_child_count_and_size_all(&path, true)),
             count: 0,
         }
@@ -33,6 +39,10 @@ impl DirTraversal {
 
     pub fn status(&self) -> &DirStatus {
         &self.status
+    }
+
+    pub fn mut_status(&mut self) -> &mut DirStatus {
+        &mut self.status
     }
 
     pub fn is_done_calculating(&self) -> bool {
@@ -82,5 +92,36 @@ impl Stream for DirTraversal {
         }
 
         return Poll::Ready(None);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fs::traversal::DirTraversal;
+    use futures::StreamExt;
+    use std::path::PathBuf;
+
+    #[tokio::test]
+    async fn test_dir_traversal() {
+        // TODO test this with external storage devices like usb drives
+        let path = PathBuf::from("/Users/Deep/College/senior project/testing")
+            .absolute()
+            .unwrap();
+        let mut traversal = DirTraversal::new(path);
+        let mut count = 0;
+        while let Some(entry) = traversal.next().await {
+            count += 1;
+            if let Err(err) = entry {
+                count -= 1;
+                println!("error: {:?}", err);
+            } else if let Ok(entry) = entry {
+                println!("entry: {:?} depth: {}", entry.path(), entry.depth());
+            }
+        }
+
+        traversal.mut_status().calculate().await;
+
+        assert_eq!(count, *traversal.status().get_info().unwrap().items());
     }
 }

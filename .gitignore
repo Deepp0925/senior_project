@@ -15,6 +15,7 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 Cargo.lock
+target/*
 
 # Editor directories and files
 .vscode/*
@@ -26,5 +27,3 @@ Cargo.lock
 *.njsproj
 *.sln
 *.sw?
-
-/testing

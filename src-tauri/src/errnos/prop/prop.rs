@@ -6,6 +6,8 @@ use std::{
 
 use crate::path::PathExt;
 
+use super::PropErrnoResult;
+
 /// prop.rs - short for propagation
 /// It is possible to return a string based error for each error kind
 /// but it won't be very useful on the UI side as the error will
@@ -174,6 +176,16 @@ pub enum PropErrno {
 }
 
 impl PropErrno {
+    pub fn from_io_result<T, P: AsRef<Path>>(
+        res: Result<T, IOError>,
+        path: Option<P>,
+    ) -> PropErrnoResult<T> {
+        match res {
+            Ok(v) => Ok(v),
+            Err(err) => Err(PropErrno::from_io_error(&err, path)),
+        }
+    }
+
     pub fn from_io_error<P: AsRef<Path>>(err: &IOError, path: Option<P>) -> Self {
         match err.kind() {
             ErrorKind::InvalidData => {

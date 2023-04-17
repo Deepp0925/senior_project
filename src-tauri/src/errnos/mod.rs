@@ -1,3 +1,4 @@
+#[allow(unused)]
 mod errnos;
 #[macro_use]
 mod prop;
