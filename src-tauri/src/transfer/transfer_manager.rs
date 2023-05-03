@@ -6,12 +6,16 @@ use crate::{
     path::PathExt,
     shared::progress::Progress,
 };
-use async_channel::bounded;
-use std::{collections::HashMap, path::Path};
+use event_emitter::EventEmitter;
+use lazy_static::lazy_static;
+use parking_lot::RwLock;
+use std::{collections::HashMap, sync::Arc};
 
 /// Maximum number of files to open at a time
 /// and transfer at a time
-pub const MAX_FILES_OPEN: usize = 4;
+pub const MAX_FAST_WORKERS: usize = 4;
+pub const MAX_AVERAGE_WORKERS: usize = 3;
+pub const MAX_SLOW_WORKERS: usize = 2;
 
 enum Worker {
     Splitter(FileSplitter),
@@ -21,10 +25,11 @@ enum Worker {
 pub struct TransferManager {
     dst: DstPath,
     progress: Option<Progress>, // this is by default None, until all file size is calculated
-    notifications: NotificationManager,
     workers: HashMap<String, Worker>,
     dir_traversal: DirTraversal,
 }
+
+fn t() {}
 
 impl TransferManager {
     // pub fn new<P: AsRef<Path>>(path: P, dst: P) -> PropErrnoResult<Self> {

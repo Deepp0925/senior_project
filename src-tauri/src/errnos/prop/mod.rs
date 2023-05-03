@@ -35,7 +35,7 @@ impl<T> From<PropErrno> for PropErrnoResult<T> {
 macro_rules! map_to_properrno {
     ($result:expr, $errno:expr) => {
         $result.map_err(|e| {
-            error!("{}: {}", $errno, e);
+            log::error!("{}: {}", $errno, e);
             $errno
         })
     };
@@ -77,7 +77,7 @@ macro_rules! map_to_properrno_else {
     ($result:ident, $f:expr) => {
         $result.map_err(|e| {
             let errno = $f(&e);
-            error!("{}: {}", errno, e);
+            log::error!("{}: {}", errno, e);
             errno
         })
     };
