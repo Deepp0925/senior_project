@@ -27,3 +27,4 @@ target/*
 *.njsproj
 *.sln
 *.sw?
+testing/bike.blend1

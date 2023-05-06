@@ -1,8 +1,11 @@
+use parking_lot::RwLock;
 use serde_json::Value;
 use std::{
     collections::{HashMap, VecDeque},
     future::poll_fn,
 };
+
+use lazy_static::lazy_static;
 
 use crate::{
     fs::decision::{Decision, DecisionEntry, UserDecision},
@@ -17,6 +20,11 @@ use super::notification::{Notification, NotificationKind};
 /// before the the notification manager will start dropping the oldest notifications
 /// to make room for new ones.
 const MAX_NOTIFICATIONS: usize = 25;
+
+lazy_static! {
+    pub static ref NOTIFICATION_MANAGER: RwLock<NotificationManager> =
+        RwLock::new(NotificationManager::new());
+}
 
 /// This will handle all notifications related stuff
 /// the manager will be a singleton and will be used to send notifications

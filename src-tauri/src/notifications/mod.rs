@@ -4,8 +4,8 @@ use parking_lot::RwLock;
 /// since there are no plans for cli app, this will be only for tauri
 /// however, it will be replace with a logger in the future
 pub mod manager;
-pub mod notification;
-
+mod notification;
+pub use notification::{Notification, NotificationAction, NotificationKind};
 lazy_static::lazy_static! {
     pub static ref NOTIFICATION_MANAGER: RwLock<manager::NotificationManager> = RwLock::new(manager::NotificationManager::new());
 }

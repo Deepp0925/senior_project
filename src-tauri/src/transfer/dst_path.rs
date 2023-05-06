@@ -1,26 +1,34 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs::create_dir,
+    path::{Path, PathBuf},
+};
 use walkdir::DirEntry as WalkDirEntry;
+
+use crate::{
+    errnos::PropErrno,
+    notifications::{Notification, NOTIFICATION_MANAGER},
+};
 pub struct DstPath {
     dst: PathBuf,
     current_depth: usize,
 }
 
 impl DstPath {
-    pub fn new(mut dst: PathBuf, src_name: &Path) -> Option<Self> {
-        let src_name = src_name.file_name()?;
-        dst.push(src_name);
+    pub fn new(mut dst: PathBuf) -> Option<Self> {
         Some(Self {
             dst,
             current_depth: 0,
         })
     }
 
-    pub fn handle_entry(&mut self, entry: &WalkDirEntry) -> &Path {
+    pub fn build_dst(&mut self, entry: &WalkDirEntry) -> &Path {
         // if entry.depth is greater than current_depth it will push
         // depth is the same curent_depth it will pop and push
         // depth is less than current_depth it will pop entry.depth - current_depth times + 1 and push
         let depth = entry.depth();
-        if depth > self.current_depth {
+        if depth == 0 {
+            self.dst.push(entry.file_name());
+        } else if depth > self.current_depth {
             self.dst.push(entry.file_name());
         } else if depth == self.current_depth {
             self.dst.pop();
@@ -33,6 +41,19 @@ impl DstPath {
             self.dst.push(entry.file_name());
         }
         self.current_depth = depth;
+        if entry.file_type().is_dir() {
+            let dir = create_dir(&self.dst);
+            if let Err(e) = dir {
+                NOTIFICATION_MANAGER
+                    .write()
+                    .push(Notification::new_from_properrno(
+                        PropErrno::EntityCreation(entry.file_name().to_str().unwrap().to_string()),
+                        "",
+                        "",
+                    ))
+            }
+        }
+
         self.dst.as_path()
     }
 }
@@ -41,22 +62,18 @@ impl DstPath {
 mod test {
     use futures::StreamExt;
 
-    #[tokio::test]
-    async fn dst_path_test() {
+    #[test]
+    fn dst_path_test() {
         use super::*;
         use crate::fs::traversal::DirTraversal;
 
         let src = PathBuf::from("../testing/");
 
-        let mut dst_path = DstPath::new(
-            PathBuf::from("../testing/dst_path"),
-            Path::new("../testing/"),
-        )
-        .unwrap();
+        let mut dst_path = DstPath::new(PathBuf::from("../testing/dst_path")).unwrap();
         let mut traversal = DirTraversal::new(src);
-        while let Some(entry) = traversal.next().await {
+        while let Some(entry) = traversal.get_next() {
             let entry = entry.unwrap();
-            let dst = dst_path.handle_entry(&entry);
+            let dst = dst_path.build_dst(&entry);
             println!("{} -> {}", entry.path().display(), dst.display());
         }
     }

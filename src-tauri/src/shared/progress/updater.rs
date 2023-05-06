@@ -1,5 +1,7 @@
 pub type ProgressUpdaterFn = fn(u8);
 
+pub type ProgressProcessedFn = fn(u64);
+
 pub trait ProgressUpdater {
     /// updates the progress tracker
     /// # Arguments

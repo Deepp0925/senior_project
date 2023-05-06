@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use event_emitter::EventEmitter;
-use tauri::{api::private::OnceCell, AppHandle};
+use tauri::{api::private::OnceCell, AppHandle, Manager};
 #[macro_use]
 pub mod utils;
 mod compression;
@@ -14,6 +14,10 @@ mod shared;
 mod transfer;
 mod ui;
 mod window;
+use transfer::ffi::{
+    init, is_complete, is_dir_status_calculated, set_next_worker, start, update_progress,
+    TransferState,
+};
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -28,10 +32,30 @@ fn main() {
         .setup(|app| {
             APP.set(app.handle()).unwrap();
             // TODO manage decortation of the window
+            let window = app.handle().get_window("main").unwrap();
+            window
+                .set_decorations(false)
+                .expect("failed to set decorations");
+
+            window
+                .set_min_size(Some(tauri::Size::Physical(tauri::PhysicalSize {
+                    width: 1920,
+                    height: 1080,
+                })))
+                .expect("failed to set min size");
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet,])
+        .manage(TransferState::default())
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            init,
+            start,
+            set_next_worker,
+            update_progress,
+            is_dir_status_calculated,
+            is_complete // set_dir_status_calculated
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

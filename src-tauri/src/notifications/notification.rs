@@ -1,5 +1,13 @@
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::{
+    errnos::{Errno, PropErrno, PropErrnoParams},
+    path::PathExt,
+    transfer::ffi::send_log,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NotificationKind {
@@ -58,6 +66,25 @@ impl Notification {
             kind,
             action,
         }
+    }
+
+    pub fn new_from_errno(errno: Errno) -> Self {
+        send_log(format!("errno: {:?}", errno));
+        println!("errno: {:?}", errno);
+
+        let title = Value::String(format!("title_{}", errno.code()));
+        let body = Value::String(errno.code());
+
+        Self::new(title, body, NotificationKind::Error)
+    }
+
+    pub fn new_from_properrno<P: AsRef<Path>>(properrno: PropErrno, src: P, dst: P) -> Self {
+        let mut params = PropErrnoParams::new_with_src_and_dst(
+            src.as_ref().parent_and_current(),
+            dst.as_ref().parent_and_current(),
+        );
+        let errno = Errno::from_prop_errno(properrno, &mut params);
+        Self::new_from_errno(errno)
     }
 
     pub fn id(&self) -> &Option<u8> {

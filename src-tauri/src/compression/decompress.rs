@@ -12,7 +12,7 @@ pub struct Decomprossor<R: AsyncRead + Unpin> {
 }
 
 impl<R: AsyncRead + Unpin> Decomprossor<R> {
-    pub fn from_info(algorithm: Algorithm, reader: R) -> Self {
+    pub fn new(algorithm: Algorithm, reader: R) -> Self {
         Self {
             inner: ReadAlgorithm::from_algorithm(&algorithm, reader),
         }

@@ -16,5 +16,3 @@ pub struct FailedPart {
     error: PropErrno,
     retry_count: u8,
 }
-
-// TODO add implementations

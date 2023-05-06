@@ -26,6 +26,13 @@ impl PropErrnoParams {
         PropErrnoParams::default()
     }
 
+    pub fn new_with_src_and_dst(src: String, dst: String) -> Self {
+        Self {
+            src: Some(src),
+            dst: Some(dst),
+        }
+    }
+
     pub fn set_src(&mut self, src: String) -> &mut Self {
         self.src = Some(src);
         self

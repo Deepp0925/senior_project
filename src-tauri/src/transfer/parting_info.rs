@@ -19,66 +19,85 @@ pub const MAX_SLOW_WORKER_THREADS: usize = 256;
 pub const MAX_FAST_PARTS: usize = MAX_FAST_WORKER_THREADS / MAX_FAST_WORKERS;
 pub const MAX_AVERAGE_PARTS: usize = MAX_AVERAGE_WORKER_THREADS / MAX_AVERAGE_WORKERS;
 pub const MAX_SLOW_PARTS: usize = MAX_SLOW_WORKER_THREADS / MAX_SLOW_WORKERS;
+
+#[derive(Debug, Clone, Copy)]
 pub struct PartingInfo {
     size: u64,
-    count: u64,
-    perf: Performance,
+    count: u16,
 }
 
 impl PartingInfo {
+    pub const fn worker_threads() -> usize {
+        4
+    }
+
     /// this try to divide the file into equal parts while keeping the part size
     /// greater than MIN_PART_SIZE and less than MAX_PARTS (the maximum number of parts)
-    pub fn calculate(file_size: u64, perf: Performance) -> Self {
-        let file_size = file_size as f64;
+    pub fn calculate(file_size: &u64, perf: &Performance) -> Self {
+        if *file_size < MIN_SPLIT_SIZE as u64 {
+            return Self {
+                size: *file_size,
+                count: 1,
+            };
+        }
 
-        let mut part_count = (file_size / MIN_PART_SIZE as f64).ceil();
-        let mut part_size = MIN_PART_SIZE as f64;
-        part_count = match perf {
-            Performance::Fast => {
-                if part_count > MAX_FAST_PARTS as f64 {
-                    part_size = file_size / MAX_FAST_PARTS as f64;
-                    MAX_FAST_PARTS as f64
-                } else {
-                    part_count
-                }
-            }
-            Performance::Average => {
-                if part_count > MAX_AVERAGE_PARTS as f64 {
-                    part_size = file_size / MAX_AVERAGE_PARTS as f64;
-                    MAX_AVERAGE_PARTS as f64
-                } else {
-                    part_count
-                }
-            }
-            Performance::Slow => {
-                if part_count > MAX_SLOW_PARTS as f64 {
-                    part_size = file_size / MAX_SLOW_PARTS as f64;
-                    MAX_SLOW_PARTS as f64
-                } else {
-                    part_count
-                }
-            }
-        };
+        let file_size = *file_size as f64;
 
+        // divide into two parts
+        let part_count = Self::worker_threads();
+        let part_size = file_size / part_count as f64;
         Self {
             size: part_size as u64,
-            count: part_count as u64,
-            perf,
+            count: part_count as u16,
         }
+
+        // let mut part_count = (file_size / MIN_PART_SIZE as f64).ceil();
+        // let mut part_size = MIN_PART_SIZE as f64;
+        // part_count = match perf {
+        //     Performance::Fast => {
+        //         if part_count > MAX_FAST_PARTS as f64 {
+        //             part_size = file_size / MAX_FAST_PARTS as f64;
+        //             MAX_FAST_PARTS as f64
+        //         } else {
+        //             part_count
+        //         }
+        //     }
+        //     Performance::Average => {
+        //         if part_count > MAX_AVERAGE_PARTS as f64 {
+        //             part_size = file_size / MAX_AVERAGE_PARTS as f64;
+        //             MAX_AVERAGE_PARTS as f64
+        //         } else {
+        //             part_count
+        //         }
+        //     }
+        //     Performance::Slow => {
+        //         if part_count > MAX_SLOW_PARTS as f64 {
+        //             part_size = file_size / MAX_SLOW_PARTS as f64;
+        //             MAX_SLOW_PARTS as f64
+        //         } else {
+        //             part_count
+        //         }
+        //     }
+        // };
+
+        // Self {
+        //     size: part_size as u64,
+        //     count: part_count as u16,
+        // }
     }
 
     pub fn size(&self) -> &u64 {
         &self.size
     }
 
-    pub fn count(&self) -> &u64 {
+    pub fn count(&self) -> &u16 {
         &self.count
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::transfer::chunk::MIN_CHUNK_SIZE;
+    use crate::{fs::size::readable_size, transfer::chunk::MIN_CHUNK_SIZE};
 
     #[test]
     fn test_mime() {
@@ -89,15 +108,21 @@ mod test {
     #[test]
     fn calculate_test() {
         use super::{PartingInfo, Performance, MAX_SLOW_PARTS};
-        let parting_info = PartingInfo::calculate(MIN_CHUNK_SIZE as u64 * 2, Performance::Fast);
+        let parting_info = PartingInfo::calculate(&(MIN_CHUNK_SIZE as u64 * 2), &Performance::Fast);
         assert_eq!(*parting_info.size(), 8192);
         assert_eq!(*parting_info.count(), 2);
-        let parting_info = PartingInfo::calculate(17 * 1024, Performance::Average);
+        let parting_info = PartingInfo::calculate(&(17 * 1024), &Performance::Average);
         assert_eq!(*parting_info.size(), 8192);
         assert_eq!(*parting_info.count(), 3);
-        let parting_info =
-            PartingInfo::calculate(8 * 1024 * (MAX_SLOW_PARTS + 1) as u64, Performance::Slow);
+        let parting_info = PartingInfo::calculate(
+            &(8 * 1024 * (MAX_SLOW_PARTS + 1) as u64),
+            &Performance::Slow,
+        );
         assert_eq!(*parting_info.size(), 8256);
-        assert_eq!(*parting_info.count(), MAX_SLOW_PARTS as u64);
+        assert_eq!(*parting_info.count(), MAX_SLOW_PARTS as u16);
+
+        let parting_info = PartingInfo::calculate(&222123236, &Performance::Fast);
+        println!("{:?}", readable_size(*parting_info.size() as u128));
+        println!("{:?}", parting_info);
     }
 }

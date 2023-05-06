@@ -113,14 +113,15 @@ pub fn absolute<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
 
 pub fn normalize<P: AsRef<Path>>(path: P) -> PropErrnoResult<PathBuf> {
     let normalized_path = NormPathExt::normalize(path.as_ref());
-    let normalized_path = PropErrno::from_io_result(normalized_path, Some(&path))?
+    let normalized_path = PropErrno::from_io_result(normalized_path, Some(path.as_ref()))?
         .as_os_str()
         .to_str()
         .ok_or(PropErrno::PathNormalizeVal(
             path.as_ref().parent_and_current(),
         ))?
         .to_owned();
-    let path = Path::new(&(normalized_path.replace("\\\\", "/"))).to_owned();
+    // let path = Path::new(&(normalized_path.replace("\\\\", "/"))).to_owned();
+    let path = PathBuf::from(normalized_path);
     return Ok(path);
 }
 

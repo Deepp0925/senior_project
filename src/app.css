@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url("https://fonts.googleapis.com/css?family=Quicksand:300,400,600,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0");
+
+* {
+  box-sizing: border-box;
+  font-family: "Quicksand", sans-serif;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 48;
+}
+.indeterminate-progress-bar {
+  /* Color */
+  background-color: #d1d5db;
+
+  /* Rounded border */
+  border-radius: 9999px;
+
+  /* Size */
+  height: 0.5rem;
+
+  position: relative;
+  overflow: hidden;
+}
+
+.indeterminate-progress-bar__progress {
+  /* Color */
+  background-color: #3b82f6;
+
+  /* Rounded border */
+  border-radius: 9999px;
+
+  /* Absolute position */
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  /* width: 50%; */
+
+  /* Move the bar infinitely */
+  /* animation-duration: 2s;
+  animation-iteration-count: infinite;
+  animation-name: indeterminate-progress-bar; */
+}
+
+@keyframes indeterminate-progress-bar {
+  from {
+    left: -50%;
+  }
+  to {
+    left: 100%;
+  }
+}

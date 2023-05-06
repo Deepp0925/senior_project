@@ -1,4 +1,5 @@
 use std::{
+    iter::Peekable,
     path::Path,
     pin::Pin,
     task::{Context, Poll},
@@ -18,12 +19,20 @@ pub struct DirTraversal {
     count: u128,
 }
 
+fn ignore_hidden(entry: &WalkDirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| !s.starts_with("."))
+        .unwrap_or(false)
+}
+
 impl DirTraversal {
+    /// this will skip all hidden files and directories
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             root: WalkDir::new(&path)
                 .max_depth(usize::MAX)
-                // .skip_hidden(skip_hidden)
                 .into_iter()
                 .filter_entry(|entry| {
                     entry
@@ -46,7 +55,11 @@ impl DirTraversal {
     }
 
     pub fn is_done_calculating(&self) -> bool {
-        self.status.is_done()
+        if let DirStatus::Calculating(handle) = &self.status {
+            return handle.is_finished();
+        }
+
+        return true;
     }
 
     pub fn get_count(&self) -> u128 {
@@ -61,6 +74,14 @@ impl DirTraversal {
         None
     }
 
+    pub fn is_complete(&self) -> bool {
+        if let Some(remaining) = self.remaining() {
+            return remaining == 0;
+        } else {
+            self.is_done_calculating()
+        }
+    }
+
     /// NOTE: this is function should always return Err
     fn handle_error(err: Error) -> PropErrno {
         if let Some(loop_path) = err.loop_ancestor() {
@@ -71,16 +92,12 @@ impl DirTraversal {
         let io_error = err.io_error().unwrap();
         return PropErrno::from_io_error(io_error, path);
     }
-}
 
-impl Stream for DirTraversal {
-    type Item = PropErrnoResult<WalkDirEntry>;
-
-    fn poll_next(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // if it is, then we should return the next entry from the later state
+    pub fn get_next(&mut self) -> Option<PropErrnoResult<WalkDirEntry>> {
         if let Some(next) = self.root.next() {
             if let Ok(entry) = next {
-                return Poll::Ready(Some(Ok(entry)));
+                self.count += 1;
+                return Some(Ok(entry));
             }
 
             // SAFE: we know that the next entry is an error from the if let statement above
@@ -88,10 +105,24 @@ impl Stream for DirTraversal {
 
             // check the error
             // error was result of
-            return Poll::Ready(Some(Self::handle_error(error).into()));
+            return Some(Self::handle_error(error).into());
         }
 
-        return Poll::Ready(None);
+        None
+    }
+}
+
+impl Stream for DirTraversal {
+    type Item = PropErrnoResult<WalkDirEntry>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Poll::Ready(self.get_next())
+    }
+}
+
+impl Drop for DirTraversal {
+    fn drop(&mut self) {
+        self.status.cancel();
     }
 }
 
@@ -110,7 +141,7 @@ mod tests {
             .unwrap();
         let mut traversal = DirTraversal::new(path);
         let mut count = 0;
-        while let Some(entry) = traversal.next().await {
+        while let Some(entry) = traversal.get_next() {
             count += 1;
             if let Err(err) = entry {
                 count -= 1;

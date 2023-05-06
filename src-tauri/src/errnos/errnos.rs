@@ -1,4 +1,7 @@
-use super::prop::{PropErrno, PropErrnoParams};
+use super::{
+    prop::{PropErrno, PropErrnoParams},
+    PropErrnoResult,
+};
 use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -11,6 +14,25 @@ pub struct Errno {
     fixable: bool,
     params: Value,
 }
+
+pub type ErrnoResult<T> = Result<T, Errno>;
+
+// pub trait IntoAnyhowResult<T> {
+//     fn into_anyhow_result(self) -> anyhow::Result<T>;
+// }
+
+// impl<T> IntoAnyhowResult<T> for ErrnoResult<T> {
+//     fn into_anyhow_result(self) -> anyhow::Result<T> {
+//         self.map_err(|e| {
+//             let err = anyhow::Error::new(e);
+
+//             // let code = e.code.clone();
+//             // let mut err = anyhow::Error::msg(code);
+//             // err = err.context(e.to_string());
+//             return err;
+//         })
+//     }
+// }
 
 impl fmt::Display for Errno {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -46,6 +68,16 @@ impl Errno {
         let errno = closest_errno.unwrap_or_default();
         error!("io error : {}", _err);
         errno
+    }
+
+    pub fn from_prop_errno_res<T>(
+        res: PropErrnoResult<T>,
+        params: &mut PropErrnoParams,
+    ) -> ErrnoResult<T> {
+        match res {
+            Ok(t) => Ok(t),
+            Err(e) => Err(Errno::from_prop_errno(e, params)),
+        }
     }
 
     /// Allows for translation of PropErrno to Errno

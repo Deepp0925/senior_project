@@ -1,0 +1,1 @@
+/// Part manager keeps track of a part and its details

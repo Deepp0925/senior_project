@@ -73,6 +73,27 @@ pub const BROTLI_FORMATS: [&'static str; 9] = [
     "application/xml",
 ];
 
+pub const BZ_EXT: &'static str = "bz";
+pub const BZ_PARTED_EXT: &'static str = "bz0";
+pub const XZ_EXT: &'static str = "xz";
+pub const XZ_PARTED_EXT: &'static str = "xz0";
+pub const ZST_EXT: &'static str = "zst";
+pub const ZST_PARTED_EXT: &'static str = "zst0";
+pub const BR_EXT: &'static str = "br";
+pub const BR_PARTED_EXT: &'static str = "br0";
+pub const NONE_PARTED_EXT: &'static str = "0";
+
+/// These are all the possible extentions that can be used for the following compression algorithms
+/// if the extension is any of them it means that the file was split into multiple parts
+/// bz0, xz0, 0, zst0, br0
+// pub static ref SPLIT_EXT: [&'static OsStr; 5] = [
+//     OsStr::new(BZ_PARTED_EXT),
+//     OsStr::new(XZ_PARTED_EXT),
+//     OsStr::new(ZST_PARTED_EXT),
+//     OsStr::new(BR_PARTED_EXT),
+//     OsStr::new(NONE_PARTED_EXT),
+// ];
+
 pub const ZSTD_SIZE_MIN_THRESHOLD: u64 = 100_000_000;
 pub const BZIP2_SIZE_MIN_THRESHOLD: u64 = 256_000_000;
 pub const XZ_SIZE_MIN_THRESHOLD: u64 = 1_500_000_000;
@@ -87,9 +108,33 @@ pub const XZ_SIZE_MIN_THRESHOLD: u64 = 1_500_000_000;
 // - all font files - font/*
 // - .bz2, .bz, .gz, .zip, .arj, .cab, .lzh, .rar, .7z, .z, .Z
 impl Algorithm {
+    pub fn from_ext(ext: &OsStr) -> Option<Self> {
+        if ext == OsStr::new(BZ_EXT) || ext == OsStr::new(BZ_PARTED_EXT) {
+            return Some(Self::Bzip2);
+        }
+
+        if ext == OsStr::new(XZ_EXT) || ext == OsStr::new(XZ_PARTED_EXT) {
+            return Some(Self::Xz);
+        }
+
+        if ext == OsStr::new(ZST_EXT) || ext == OsStr::new(ZST_PARTED_EXT) {
+            return Some(Self::Zstd);
+        }
+
+        if ext == OsStr::new(BR_EXT) || ext == OsStr::new(BR_PARTED_EXT) {
+            return Some(Self::Brotli);
+        }
+
+        if ext == OsStr::new(NONE_PARTED_EXT) {
+            return Some(Self::None);
+        }
+
+        return None;
+    }
+
     /// This function returnst the compression algorithm to use based on the file size, mime type and performance
     /// Note: the logic behind this function might change in the future
-    pub fn from_info(size: u64, mime: Mime, ext: Option<&OsStr>, perf: &Performance) -> Self {
+    pub fn from_info(size: &u64, mime: &Mime, ext: Option<&OsStr>, perf: &Performance) -> Self {
         // if mime type is in BROTLI_FORMATS, then use Brotli regardless of size and performance
         // because if considerablly faster than Zstd
         if BROTLI_FORMATS
@@ -106,31 +151,31 @@ impl Algorithm {
         }
 
         // if size is less than 100MB, then use Zstd regardless of performance
-        if size < ZSTD_SIZE_MIN_THRESHOLD {
+        if *size < ZSTD_SIZE_MIN_THRESHOLD {
             return Self::Zstd;
         }
 
         // if size is greater than 1.5GB, then use Xz if performance is Fast
-        if size > XZ_SIZE_MIN_THRESHOLD && perf == &Performance::Fast {
+        if *size > XZ_SIZE_MIN_THRESHOLD && perf == &Performance::Fast {
             return Self::Xz;
         }
 
         return Self::Bzip2;
     }
 
-    pub fn from_size(size: u64) -> Self {
-        if size < ZSTD_SIZE_MIN_THRESHOLD {
+    pub fn from_size(size: &u64) -> Self {
+        if *size < ZSTD_SIZE_MIN_THRESHOLD {
             return Self::Zstd;
         }
 
-        if size > XZ_SIZE_MIN_THRESHOLD {
+        if *size > XZ_SIZE_MIN_THRESHOLD {
             return Self::Xz;
         }
 
         return Self::Bzip2;
     }
 
-    pub fn from_mime(mime: Mime) -> Option<Self> {
+    pub fn from_mime(mime: &Mime) -> Option<Self> {
         if BROTLI_FORMATS
             .iter()
             .any(|&t| mime.essence_str().starts_with(t))
@@ -144,12 +189,39 @@ impl Algorithm {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Self {
         let mime_opt = from_path(path.as_ref()).first();
         if let Some(mime) = mime_opt {
-            if let Some(algo) = Self::from_mime(mime) {
+            if let Some(algo) = Self::from_mime(&mime) {
                 return algo;
             }
         }
 
         return Self::Zstd;
+    }
+
+    pub fn from_path_and_size<P: AsRef<Path>>(path: P, size: &u64, perf: &Performance) -> Self {
+        let mime_opt = from_path(path.as_ref()).first();
+        if let Some(mime) = mime_opt {
+            return Self::from_info(size, &mime, path.as_ref().extension(), perf);
+        }
+
+        Self::from_size(size)
+    }
+
+    /// returns if the compression is enabled
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::None => false,
+            _ => true,
+        }
+    }
+
+    pub fn get_ext(&self) -> Option<&str> {
+        match self {
+            Self::None => None,
+            Self::Bzip2 => Some(BZ_EXT),
+            Self::Xz => Some(XZ_EXT),
+            Self::Brotli => Some(BR_EXT),
+            Self::Zstd => Some(ZST_EXT),
+        }
     }
 }
 

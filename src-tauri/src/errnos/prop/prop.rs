@@ -176,42 +176,39 @@ pub enum PropErrno {
 }
 
 impl PropErrno {
-    pub fn from_io_result<T, P: AsRef<Path>>(
-        res: Result<T, IOError>,
-        path: Option<P>,
-    ) -> PropErrnoResult<T> {
+    pub fn from_io_result<T>(res: Result<T, IOError>, path: Option<&Path>) -> PropErrnoResult<T> {
         match res {
             Ok(v) => Ok(v),
             Err(err) => Err(PropErrno::from_io_error(&err, path)),
         }
     }
 
-    pub fn from_io_error<P: AsRef<Path>>(err: &IOError, path: Option<P>) -> Self {
+    pub fn from_io_error(err: &IOError, path: Option<&Path>) -> Self {
         match err.kind() {
             ErrorKind::InvalidData => {
                 if let Some(path) = path {
-                    PropErrno::CorruptedFileVal(path.as_ref().parent_and_current())
+                    PropErrno::CorruptedFileVal(path.parent_and_current())
                 } else {
                     PropErrno::CorruptedFile
                 }
             }
             ErrorKind::NotFound => {
                 if let Some(path) = path {
-                    PropErrno::PathNotFoundVal(path.as_ref().parent_and_current())
+                    PropErrno::PathNotFoundVal(path.parent_and_current())
                 } else {
                     PropErrno::PathNotFound
                 }
             }
             ErrorKind::PermissionDenied => {
                 if let Some(path) = path {
-                    PropErrno::ReadPermVal(path.as_ref().parent_and_current())
+                    PropErrno::ReadPermVal(path.parent_and_current())
                 } else {
                     PropErrno::ReadPerm
                 }
             }
             ErrorKind::AlreadyExists => {
                 if let Some(path) = path {
-                    PropErrno::EntityCreation(path.as_ref().parent_and_current())
+                    PropErrno::EntityCreation(path.parent_and_current())
                 } else {
                     PropErrno::EntityCreation(Path::unknown_path())
                 }
@@ -238,7 +235,7 @@ impl PropErrno {
             // ErrorKind::StaleNetworkFileHandle => todo!(),
             ErrorKind::TimedOut => {
                 if let Some(path) = path {
-                    PropErrno::TimedOutVal(path.as_ref().parent_and_current())
+                    PropErrno::TimedOutVal(path.parent_and_current())
                 } else {
                     PropErrno::TimedOut
                 }
@@ -256,7 +253,7 @@ impl PropErrno {
             // ErrorKind::ArgumentListTooLong => todo!(),
             ErrorKind::UnexpectedEof => {
                 if let Some(path) = path {
-                    PropErrno::CorruptedFileVal(path.as_ref().parent_and_current())
+                    PropErrno::CorruptedFileVal(path.parent_and_current())
                 } else {
                     PropErrno::CorruptedFile
                 }
@@ -264,7 +261,7 @@ impl PropErrno {
             ErrorKind::OutOfMemory => PropErrno::NoMem,
             _ => {
                 if let Some(path) = path {
-                    PropErrno::UnknownVal(path.as_ref().parent_and_current())
+                    PropErrno::UnknownVal(path.parent_and_current())
                 } else {
                     PropErrno::Unknown
                 }
