@@ -273,4 +273,28 @@ mod tests {
     //     );
     //     tokio::io::copy(&mut reader, &mut writer).await.unwrap();
     // }
+
+    #[tokio::test]
+    async fn test_regular_copy_async() {
+        let src = PathBuf::from("../testing/bike.blend1");
+        let dst = PathBuf::from("/Volumes/PNY 2/test_dst1/bike.blend1");
+        let reader = tokio::fs::File::open(src).await.unwrap();
+        let mut reader = tokio::io::BufReader::new(reader);
+        let writer = tokio::fs::File::create(dst).await.unwrap();
+        let mut writer = BufWriter::new(writer);
+
+        tokio::io::copy(&mut reader, &mut writer).await.unwrap();
+    }
+
+    #[test]
+    fn test_regular_copy() {
+        let src = PathBuf::from("../testing/bike.blend1");
+        let dst = PathBuf::from("/Volumes/PNY 2/test_dst2/bike.blend1");
+        let reader = std::fs::File::open(src).unwrap();
+        let mut reader = std::io::BufReader::new(reader);
+        let writer = std::fs::File::create(dst).unwrap();
+        let mut writer = std::io::BufWriter::new(writer);
+
+        std::io::copy(&mut reader, &mut writer).unwrap();
+    }
 }

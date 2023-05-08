@@ -28,7 +28,3 @@ target/*
 *.sln
 *.sw?
 testing/bike.blend1
-*.pdf
-*.pptx
-*.docx
-*.xd
