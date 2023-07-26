@@ -1,4 +1,4 @@
-# Untitled Project [proposed: Project Volta]
+# Senior Project
 
 The main purpose of this project is minimize the time taken to copy (a) file(s)/ folder(s). `Copy` function (which does literal byte copy) in itself is very difficult to optimize as it is I/O bound and vastly depends upon the hardware and the OS. Therefore, the idea is explore listed approaches and/ or combination of them.
 
@@ -18,4 +18,4 @@ There are a lot of overhead associated when opening and closing a file. Generall
 
 This was a part of senior project (as mentioned above), which means all the pre-implementation phase files have been include here as well. This includes the research paper, architecture design, UML class diagram, and UI design.
 
-To understand all the design choices and results take a look at results.
+To understand all the design choices and results take a look at results section in research paper.
